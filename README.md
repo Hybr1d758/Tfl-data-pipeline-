@@ -1,4 +1,4 @@
-run it # TfL Data Pipeline
+# TfL Data Pipeline
 
 ## Overview
 Data engineering playground for Transport for London arrivals data. The goal is to automate extraction from the TfL Unified API, transform the payload into curated tables, and load it into a warehouse-ready store (Postgres).
