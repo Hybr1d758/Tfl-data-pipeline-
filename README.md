@@ -25,6 +25,28 @@ Data engineering playground for Transport for London arrivals data. The goal is 
    ```
 4. Populate a `.env` using `.env.example` as a guide. Export `TFL_APP_ID`, `TFL_APP_KEY`, and Postgres connection details before running scripts.
 
+## Environment Variables
+
+Populate a `.env` file (see `.env.example`) with the following keys before running export commands:
+
+```bash
+TFL_APP_ID=your-tfl-app-id
+TFL_APP_KEY=your-tfl-app-key
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_DEFAULT_REGION=eu-west-2
+TFL_S3_BUCKET=tfl-datapipeline
+TFL_S3_PREFIX=line-routes/
+```
+
+Export them into your shell session:
+
+```bash
+set -a
+source .env
+set +a
+```
+
 ## Development Workflow
 ```bash
 # activate environment
@@ -54,6 +76,20 @@ for entry in routes:
         print(json.dumps(entry, indent=2)[:1000])
 PY
 
+# upload latest line routes snapshot to S3 (gzip compressed)
+python - <<'PY'
+from etl.upload_tfl import upload_line_routes_to_s3
+
+key = upload_line_routes_to_s3(
+    bucket="tfl-datapipeline",
+    key_prefix="line-routes/",
+    line_ids=["central", "northern", "piccadilly"],
+    service_types=["Regular"],
+    modes=["tube"],
+)
+print(f"Uploaded payload to s3://tfl-datapipeline/{key}")
+PY
+
 # run tests
 pytest -q
 
@@ -69,6 +105,7 @@ git push
 - **Environment isolation**: To prevent dependency drift, we standardized on a `.venv` virtual environment with dependencies pinned in `requirements.txt`, and ensured the virtual environment stays out of git.
 - **Line route discovery**: When calling `GET /Line/Route` without explicit line IDs, TfL returns aggregate records where `lineId` may be `null`. We now expose `modes` and `serviceTypes` filters via `get_line_routes` but still need to map anonymous records back to canonical line IDs in later transforms.
 - **High-volume responses**: Even when requesting specific line IDs, TfL responds with the full route catalogue (~700+ records). We filter client-side to surface the requested lines while keeping the raw payload available for downstream enrichment.
+- **Storage constraints**: To minimize storage overhead in S3 (`tfl-datapipeline`), we gzip-compress snapshots via `upload_line_routes_to_s3`, preserving raw JSON while keeping objects friendly for DuckDB/Postgres staging.
 
 ## Roadmap
 - Enrich arrivals with metadata (routes, lines, station info) before loading.

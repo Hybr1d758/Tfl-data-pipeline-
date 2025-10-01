@@ -151,3 +151,4 @@ def arrivals_to_dataframe(arrivals: List[dict]) -> pd.DataFrame:
     if not arrivals:
         return pd.DataFrame()
     return pd.json_normalize(arrivals)
+
