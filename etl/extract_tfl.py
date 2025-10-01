@@ -88,8 +88,67 @@ def extract_tfl_data(stop_point_id: str, **kwargs) -> List[dict]:
     return get_tfl_data(stop_point_id, **kwargs)
 
 
+def get_line_routes(
+    line_ids: Optional[List[str]] = None,
+    service_types: Optional[List[str]] = None,
+    modes: Optional[List[str]] = None,
+    timeout: float = 10.0,
+    session: Optional[Session] = None,
+) -> List[dict]:
+    """Fetch line route metadata from TfL."""
+    url = f"{TFL_BASE_URL}/Line/Route"
+    params = {}
+    if line_ids:
+        params["ids"] = ",".join(line_ids)
+    if service_types:
+        params["serviceTypes"] = ",".join(service_types)
+    if modes:
+        params["modes"] = ",".join(modes)
+
+    session = session or get_http_session()
+    logger.info(
+        "Fetching TfL line route metadata%s",
+        ", ".join(
+            filter(
+                None,
+                [
+                    f"for lines {params['ids']}" if "ids" in params else "",
+                    f"modes {params['modes']}" if "modes" in params else "",
+                    f"services {params['serviceTypes']}"
+                    if "serviceTypes" in params
+                    else "",
+                ],
+            )
+        )
+        or "",
+    )
+
+    try:
+        resp = session.get(url, params=params, timeout=timeout)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        logger.warning("TfL line route request failed: %s", exc)
+        raise RuntimeError("Failed to fetch line routes from TfL API") from exc
+
+    try:
+        data = resp.json()
+    except ValueError as exc:
+        logger.warning("TfL line route response was not JSON")
+        raise RuntimeError("TfL API did not return JSON for line routes.") from exc
+
+    if not isinstance(data, list):
+        logger.warning("Unexpected TfL line route response type %s", type(data).__name__)
+        raise RuntimeError(
+            f"Unexpected TfL line route response type: {type(data).__name__}"
+        )
+
+    logger.debug("Fetched %d line route records", len(data))
+    return data
+
+
 def arrivals_to_dataframe(arrivals: List[dict]) -> pd.DataFrame:
     """Optional: normalize arrivals to a DataFrame."""
     if not arrivals:
         return pd.DataFrame()
     return pd.json_normalize(arrivals)
+
