@@ -99,6 +99,28 @@ git commit -m "feat: describe change"
 git push
 ```
 
+## Validate Snapshot & Explore Data
+
+1. Confirm the object in S3 (replace the timestamp with your latest run):
+   ```bash
+   aws s3 ls s3://tfl-datapipeline/line-routes/line-routes-20251003T164315Z.json.gz
+   ```
+2. Pull the snapshot locally if you want to inspect it directly:
+   ```bash
+   aws s3 cp s3://tfl-datapipeline/line-routes/line-routes-20251003T164315Z.json.gz ./data/
+   gzip -dc ./data/line-routes-20251003T164315Z.json.gz | jq '.[0]'
+   ```
+3. Load into DuckDB for fast exploration:
+   ```sql
+   INSTALL httpfs;
+   LOAD httpfs;
+   SELECT line->>'id' AS line_id,
+          route_sections[1]->>'originationName' AS origin
+   FROM read_json_auto('s3://tfl-datapipeline/line-routes/line-routes-20251003T164315Z.json.gz');
+   ```
+
+Adjust the prefix or timestamp if you rotate snapshots or run multiple exports.
+
 ## Challenges & Resolutions (running log)
 - **Credential handling**: Initial extractor embedded credentials in the URL and reused a single key. We refactored to source `app_id`/`app_key` from environment variables and pass them securely via query parameters.
 - **Network reliability**: Original API calls had no retries and minimal error handling. We introduced a shared `requests.Session` with retry/backoff, explicit logging, and JSON validation to make extraction resilient.
