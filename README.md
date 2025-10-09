@@ -73,6 +73,7 @@ pytest tests/test_transform_clean.py -q  # schema-focused checks
 - Schema tests cover column renames, type coercion, missing timestamps, mixed modes, and validation failures.
 - `enrich_arrivals_with_metadata` caches stop point lookups to avoid redundant API calls when processing large batches.
 - Pipelines exit gracefully when credentials are missing, making CI runs predictable.
+- GitHub Actions workflow (`.github/workflows/ci.yml`) provisions Python 3.11, installs dependencies, and runs `pytest -q` on push/PR.
 
 ## Artefacts & Exploration
 - Use `etl/upload_tfl.py` to gzip and stage route metadata snapshots in S3 for DuckDB analytics.
