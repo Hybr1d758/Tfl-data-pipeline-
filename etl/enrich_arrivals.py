@@ -16,7 +16,17 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "fetch_stop_point_metadata",
     "enrich_arrivals_with_metadata",
+    "clear_stop_point_cache",
 ]
+
+
+_stop_point_cache: Dict[str, dict] = {}
+
+
+def clear_stop_point_cache() -> None:
+    """Reset the in-memory stop point metadata cache (mostly for testing)."""
+
+    _stop_point_cache.clear()
 
 
 def _normalise_line_id(line_id: Optional[str]) -> Optional[str]:
@@ -84,6 +94,11 @@ def fetch_stop_point_metadata(
     if not stop_point_id:
         raise ValueError("stop_point_id must be provided")
 
+    cached = _stop_point_cache.get(stop_point_id)
+    if cached is not None:
+        logger.debug("Using cached stop point metadata for %s", stop_point_id)
+        return cached
+
     session = session or get_http_session()
     app_id = app_id or os.getenv("TFL_APP_ID")
     app_key = app_key or os.getenv("TFL_APP_KEY")
@@ -115,6 +130,7 @@ def fetch_stop_point_metadata(
         )
         raise RuntimeError("Unexpected TfL stop point response type")
 
+    _stop_point_cache[stop_point_id] = data
     return data
 
 

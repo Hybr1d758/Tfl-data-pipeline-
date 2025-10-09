@@ -1,139 +1,93 @@
-run it # TfL Data Pipeline
+# TfL Data Pipeline
 
-## Overview
-Data engineering playground for Transport for London arrivals data. The goal is to automate extraction from the TfL Unified API, transform the payload into curated tables, and load it into a warehouse-ready store (Postgres).
+A real-time data engineering playground that extracts Transport for London (TfL) arrivals, enriches them with contextual metadata, and stages analytics-ready datasets for DuckDB/Postgres.
+
+## Highlights
+- Built resilient ingestion against TfL’s Unified API with retries, JSON validation, and credential hygiene.
+- Automated enrichment marries arrivals with line and stop metadata, then normalises the payload for downstream stores.
+- Schema-focused pytest suite guards transformations while GitHub-ready CLI tooling accelerates local iteration.
+
+## My Role
+- Designed the arrivals enrichment layer (`etl/enrich_arrivals.py`) including in-memory stop point caching to reduce API chatter.
+- Authored the cleaning pipeline (`etl/transform_clean.py`) with column normalisation, type coercion, deduplication, and validation heuristics.
+- Embedded schema regression tests and documentation so the project is CI-ready and easy to onboard.
+
+## Tech Stack
+| Domain        | Tools & Libraries                                     |
+|---------------|--------------------------------------------------------|
+| Language      | Python 3.11                                            |
+| Data & ETL    | pandas, requests, boto3, DuckDB                        |
+| Testing       | pytest                                                 |
+| Cloud/Infra   | AWS S3 (staging), Docker (infra/), GitHub Actions-ready|
+| Tooling       | Virtualenv, gzip, CLI utilities                        |
 
 ## Repository Structure
 - `etl/` – Python modules for extract/transform/load steps
-- `tests/` – pytest coverage for ETL logic and fixtures for sample API payloads
-- `infra/` – Docker configuration to spin up local dependencies such as Postgres
-- `docs/` – Architecture diagram and schema notes for downstream consumption
-- `.env.example` – Template for environment variables (TfL API keys, DB credentials)
-- `requirements.txt` – Python dependencies pinned for reproducibility
+  - `extract_tfl.py` – Core API clients and HTTP session utilities
+  - `enrich_arrivals.py` – Decorates arrivals with line & stop metadata (cached lookups)
+  - `transform_clean.py` – Cleans/validates arrivals and exposes a CLI
+  - `pipeline.py` – Orchestrates extraction → enrichment → cleaning in one command
+- `tests/` – pytest coverage for ETL logic and schema fixtures
+- `infra/` – Docker configuration for Postgres and supporting services
+- `docs/` – Diagrams and architecture notes for stakeholders
+- `.env.example` – Bootstrap template for required credentials
+- `requirements.txt` – Pinned Python dependencies for reproducibility
 
-## Local Setup
-1. Clone the repository and switch into the project folder.
-2. Create and activate a virtual environment:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-3. Install dependencies and keep `pip` up to date:
-   ```bash
-   pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
-4. Populate a `.env` using `.env.example` as a guide. Export `TFL_APP_ID`, `TFL_APP_KEY`, and Postgres connection details before running scripts.
-
-## Environment Variables
-
-Populate a `.env` file (see `.env.example`) with the following keys before running export commands:
-
+## Quick Start
+### 1. Prerequisites
 ```bash
-TFL_APP_ID=your-tfl-app-id
-TFL_APP_KEY=your-tfl-app-key
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-AWS_DEFAULT_REGION=eu-west-2
-TFL_S3_BUCKET=tfl-datapipeline
-TFL_S3_PREFIX=line-routes/
-```
-
-Export them into your shell session:
-
-```bash
-set -a
-source .env
-set +a
-```
-
-## Development Workflow
-```bash
-# activate environment
+python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+cp .env.example .env  # fill in TfL + AWS credentials
+```
 
-# run extraction module (example stop point)
+### 2. Run the pipeline
+```bash
+# pull arrivals for a stop point (requires TFL_APP_ID/TFL_APP_KEY)
+python -m etl.pipeline 940GZZLUEBY --line-modes tube --line-service-types Regular
+
+# inspect the enriched JSON / cleaned CSV outputs (flags optional)
+python -m etl.pipeline 940GZZLUEBY \
+  --output-json data/enriched.json \
+  --output data/arrivals-clean.csv
+```
+
+### 3. Explore enrichment & cleaning modules directly
+```bash
+# standalone extraction (raw API payload)
 python -m etl.extract_tfl --stop-point 2420900042
 
-# fetch route metadata for all tube lines with regular service
-python - <<'PY'
-from etl.extract_tfl import get_line_routes
-
-routes = get_line_routes(modes=["tube"], service_types=["Regular"])
-print(f"Fetched {len(routes)} tube routes with regular service")
-PY
-
-# inspect top 3 tube lines explicitly (Central, Northern, Piccadilly)
-python - <<'PY'
-import json
-from etl.extract_tfl import get_line_routes
-
-line_ids = ["central", "northern", "piccadilly"]
-routes = get_line_routes(line_ids=line_ids, service_types=["Regular"])
-
-for entry in routes:
-    if entry.get("id") in line_ids:
-        print(json.dumps(entry, indent=2)[:1000])
-PY
-
-# upload latest line routes snapshot to S3 (gzip compressed)
-python - <<'PY'
-from etl.upload_tfl import upload_line_routes_to_s3
-
-key = upload_line_routes_to_s3(
-    bucket="tfl-datapipeline",
-    key_prefix="line-routes/",
-    line_ids=["central", "northern", "piccadilly"],
-    service_types=["Regular"],
-    modes=["tube"],
-)
-print(f"Uploaded payload to s3://tfl-datapipeline/{key}")
-PY
-
-# run tests
-pytest -q
-
-# commit & push
-git add <files>
-git commit -m "feat: describe change"
-git push
+# run cleaning pipeline against a local payload
+python -m etl.transform_clean --input data/arrivals.json --output data/arrivals-clean.csv
 ```
 
-## Validate Snapshot & Explore Data
+### 4. Tests
+```bash
+pytest -q                          # full suite
+pytest tests/test_transform_clean.py -q  # schema-focused checks
+```
 
-1. Confirm the object in S3 (replace the timestamp with your latest run):
-   ```bash
-   aws s3 ls s3://tfl-datapipeline/line-routes/line-routes-20251003T164315Z.json.gz
-   ```
-2. Pull the snapshot locally if you want to inspect it directly:
-   ```bash
-   aws s3 cp s3://tfl-datapipeline/line-routes/line-routes-20251003T164315Z.json.gz ./data/
-   gzip -dc ./data/line-routes-20251003T164315Z.json.gz | jq '.[0]'
-   ```
-3. Load into DuckDB for fast exploration:
-   ```sql
-   INSTALL httpfs;
-   LOAD httpfs;
-   SELECT line->>'id' AS line_id,
-          route_sections[1]->>'originationName' AS origin
-   FROM read_json_auto('s3://tfl-datapipeline/line-routes/line-routes-20251003T164315Z.json.gz');
-   ```
+## Testing & Quality
+- Schema tests cover column renames, type coercion, missing timestamps, mixed modes, and validation failures.
+- `enrich_arrivals_with_metadata` caches stop point lookups to avoid redundant API calls when processing large batches.
+- Pipelines exit gracefully when credentials are missing, making CI runs predictable.
 
-Adjust the prefix or timestamp if you rotate snapshots or run multiple exports.
-
-## Challenges & Resolutions (running log)
-- **Credential handling**: Initial extractor embedded credentials in the URL and reused a single key. We refactored to source `app_id`/`app_key` from environment variables and pass them securely via query parameters.
-- **Network reliability**: Original API calls had no retries and minimal error handling. We introduced a shared `requests.Session` with retry/backoff, explicit logging, and JSON validation to make extraction resilient.
-- **Environment isolation**: To prevent dependency drift, we standardized on a `.venv` virtual environment with dependencies pinned in `requirements.txt`, and ensured the virtual environment stays out of git.
-- **Line route discovery**: When calling `GET /Line/Route` without explicit line IDs, TfL returns aggregate records where `lineId` may be `null`. We now expose `modes` and `serviceTypes` filters via `get_line_routes` but still need to map anonymous records back to canonical line IDs in later transforms.
-- **High-volume responses**: Even when requesting specific line IDs, TfL responds with the full route catalogue (~700+ records). We filter client-side to surface the requested lines while keeping the raw payload available for downstream enrichment.
-- **Storage constraints**: To minimize storage overhead in S3 (`tfl-datapipeline`), we gzip-compress snapshots via `upload_line_routes_to_s3`, preserving raw JSON while keeping objects friendly for DuckDB/Postgres staging.
+## Artefacts & Exploration
+- Use `etl/upload_tfl.py` to gzip and stage route metadata snapshots in S3 for DuckDB analytics.
+- Architecture diagrams and schema notes live under `docs/` for quick onboarding conversations.
 
 ## Roadmap
-- Enrich arrivals with metadata (routes, lines, station info) before loading.
-- Harden data validation in `transform_clean.py` with schema tests.
-- Implement automated CI checks (lint, tests) prior to deployment.
-- Expand Docker Compose setup to include analytics notebooks for ad hoc exploration.
+- [x] Enrich arrivals with line & station metadata before loading.
+- [x] Harden data validation with schema tests and fixtures.
+- [ ] Implement CI workflow (GitHub Actions) for linting/tests.
+- [ ] Extend Docker Compose with analytics notebooks for ad-hoc exploration.
 
-## License
-Distributed under the terms of the `LICENSE` file.
+## Lessons Learned
+- Credential management, retry/backoff, and JSON validation are mandatory when dealing with public transit APIs.
+- High-volume responses benefit from client-side filtering plus cached metadata lookups to stay performant.
+- Schema-focused tests provide fast feedback when iterating on transformations.
+
+## Contact
+Interested in data engineering conversations or potential collaborations? Reach out via LinkedIn or email (add your preferred contact) – I’m happy to discuss scaling this pipeline or tailoring it for production analytics.
