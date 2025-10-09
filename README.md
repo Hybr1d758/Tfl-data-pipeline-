@@ -67,6 +67,17 @@ python -m etl.transform_clean --input data/arrivals.json --output data/arrivals-
 ```bash
 pytest -q                          # full suite
 pytest tests/test_transform_clean.py -q  # schema-focused checks
+pytest tests/test_orchestrator.py -q     # orchestration checks
+```
+
+### 5. Batch orchestration
+```bash
+# run multiple stops via CLI (outputs saved under data/arrivals/)
+python -m etl.orchestrator \
+  --stop-point 940GZZLUEBY \
+  --stop-point 940GZZLUSTN \
+  --output-dir data/arrivals \
+  --line-modes tube
 ```
 
 ## Testing & Quality
@@ -74,6 +85,7 @@ pytest tests/test_transform_clean.py -q  # schema-focused checks
 - `enrich_arrivals_with_metadata` caches stop point lookups to avoid redundant API calls when processing large batches.
 - Pipelines exit gracefully when credentials are missing, making CI runs predictable.
 - GitHub Actions workflow (`.github/workflows/ci.yml`) provisions Python 3.11, installs dependencies, and runs `pytest -q` on push/PR.
+- Orchestrator CLI (`etl/orchestrator.py`) batches multiple stops, persists outputs, and is covered by unit tests.
 
 ## Artefacts & Exploration
 - Use `etl/upload_tfl.py` to gzip and stage route metadata snapshots in S3 for DuckDB analytics.
