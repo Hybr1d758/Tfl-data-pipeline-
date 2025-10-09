@@ -2,6 +2,8 @@
 
 ## Overview
 Data engineering playground for Transport for London arrivals data. The goal is to automate extraction from the TfL Unified API, transform the payload into curated tables, and load it into a warehouse-ready store (Postgres).
+<img width="1536" height="1024" alt="ChatGPT Image Oct 10, 2025 at 12_25_55 AM" src="https://github.com/user-attachments/assets/0a136f18-6e75-45bc-9845-44bc90b8e3f0" />
+
 
 ## Repository Structure
 - `etl/` – Python modules for extract/transform/load steps
