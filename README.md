@@ -137,5 +137,17 @@ Adjust the prefix or timestamp if you rotate snapshots or run multiple exports.
 - Implement automated CI checks (lint, tests) prior to deployment.
 - Expand Docker Compose setup to include analytics notebooks for ad hoc exploration.
 
+## Container Usage
+```bash
+# build the Docker image
+docker build -t tfl-data-pipeline:latest .
+
+# run the default pipeline command inside the container
+docker run --rm \
+  -e TFL_APP_ID=your-app-id \
+  -e TFL_APP_KEY=your-app-key \
+  tfl-data-pipeline:latest
+```
+
 ## License
 Distributed under the terms of the `LICENSE` file.
