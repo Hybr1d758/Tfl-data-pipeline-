@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  tfl-pipeline:
+    build: .
+    environment:
+      - TFL_APP_ID=${TFL_APP_ID}
+      - TFL_APP_KEY=${TFL_APP_KEY}
+    command: ["python", "-m", "etl.orchestrator", "--stop-point", "940GZZLUEBY", "--output-dir", "/outputs", "--line-modes", "tube"]
+    volumes:
+      - ./data:/outputs

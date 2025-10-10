@@ -1,5 +1,6 @@
 # TfL Data Pipeline
 
+<<<<<<< HEAD
 A real-time data engineering playground that extracts Transport for London (TfL) arrivals, enriches them with contextual metadata, and stages analytics-ready datasets for DuckDB/Postgres.
 
 ## Highlights
@@ -20,6 +21,12 @@ A real-time data engineering playground that extracts Transport for London (TfL)
 | Testing       | pytest                                                 |
 | Cloud/Infra   | AWS S3 (staging), Docker (infra/), GitHub Actions-ready|
 | Tooling       | Virtualenv, gzip, CLI utilities                        |
+=======
+## Overview
+Data engineering playground for Transport for London arrivals data. The goal is to automate extraction from the TfL Unified API, transform the payload into curated tables, and load it into a warehouse-ready store (Postgres).
+<img width="1536" height="1024" alt="ChatGPT Image Oct 10, 2025 at 12_25_55 AM" src="https://github.com/user-attachments/assets/0a136f18-6e75-45bc-9845-44bc90b8e3f0" />
+
+>>>>>>> cb185cf6e71b4cbf2b6bdbc87f20f19687b9f22d
 
 ## Repository Structure
 - `etl/` – Python modules for extract/transform/load steps
@@ -97,6 +104,9 @@ docker run --rm \
   -e TFL_APP_KEY=your-app-key \
   tfl-data-pipeline:latest \
   python -m etl.orchestrator --stop-point 940GZZLUEBY --output-dir /tmp/arrivals
+
+# docker compose (runs orchestrator and writes to ./data)
+docker compose up --build
 ```
 
 ## Testing & Quality
@@ -116,6 +126,7 @@ docker run --rm \
 - [ ] Implement CI workflow (GitHub Actions) for linting/tests.
 - [ ] Extend Docker Compose with analytics notebooks for ad-hoc exploration.
 
+<<<<<<< HEAD
 ## Lessons Learned
 - Credential management, retry/backoff, and JSON validation are mandatory when dealing with public transit APIs.
 - High-volume responses benefit from client-side filtering plus cached metadata lookups to stay performant.
@@ -123,3 +134,7 @@ docker run --rm \
 
 ## Contact
 Interested in data engineering conversations or potential collaborations? Reach out via LinkedIn or email (add your preferred contact) – I’m happy to discuss scaling this pipeline or tailoring it for production analytics.
+=======
+## License
+Distributed under the terms of the `LICENSE` file.
+>>>>>>> cb185cf6e71b4cbf2b6bdbc87f20f19687b9f22d
