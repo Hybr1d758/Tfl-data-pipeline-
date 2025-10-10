@@ -80,6 +80,25 @@ python -m etl.orchestrator \
   --line-modes tube
 ```
 
+### 6. Docker (optional)
+```bash
+# build image
+docker build -t tfl-data-pipeline:latest .
+
+# run the default pipeline command inside the container
+docker run --rm \
+  -e TFL_APP_ID=your-app-id \
+  -e TFL_APP_KEY=your-app-key \
+  tfl-data-pipeline:latest
+
+# override the command to run batch orchestration instead
+docker run --rm \
+  -e TFL_APP_ID=your-app-id \
+  -e TFL_APP_KEY=your-app-key \
+  tfl-data-pipeline:latest \
+  python -m etl.orchestrator --stop-point 940GZZLUEBY --output-dir /tmp/arrivals
+```
+
 ## Testing & Quality
 - Schema tests cover column renames, type coercion, missing timestamps, mixed modes, and validation failures.
 - `enrich_arrivals_with_metadata` caches stop point lookups to avoid redundant API calls when processing large batches.
